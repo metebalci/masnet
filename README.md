@@ -65,4 +65,4 @@ The status line is printed every 5 seconds and at the end of the execution. At t
 # Release History
 
 0.1:
-    - initial release of masnet.download
+- initial release of masnet.download
