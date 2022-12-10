@@ -53,8 +53,9 @@ def main():
     set_working_dir(None)
 
     nodes, edges = read_graph(args.graph)
-
     g = networkx.DiGraph(edges)
+    # save memory, edges consume~3GB
+    del edges
 
     if args.degree_centrality:
 

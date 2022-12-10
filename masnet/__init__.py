@@ -115,6 +115,7 @@ def write_graph(nodes, edges):
             f.write(pack('!II', src, dst))
 
 
+# returns nodes list of (id -> str), edges list of (src id, dst id)
 def read_graph(file_path):
     nodes = {}
     edges = list()
@@ -128,7 +129,7 @@ def read_graph(file_path):
             off += 8
             domain = data[off:off+len_domain].decode('utf-8')
             off += len_domain
-            nodes[domain] = {'id': _id}
+            nodes[_id] = domain
         (len_edges,) = unpack('!I', data[off:off+4])
         off += 4
         for _ in range(0, len_edges):
