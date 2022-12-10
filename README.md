@@ -3,11 +3,11 @@
 
 `masnet` includes basic tools for Mastodon network/graph analysis.
 
-`masnet.download` downloads the required data (peers) from Mastodon instances.
+`masnet.download` downloads peers information from Mastodon instances.
 
-`masnet.generate` 
+`masnet.generate` creates Mastodon graph representation using the peers information downloaded.
 
-
+`masnet.analyze` performs basic graph/network analysis on Mastodon graph.
 
 # masnet.download
 
@@ -19,7 +19,7 @@ In addition to caching the API response, `masnet.download` also saves the http o
 
 For network connections, a timeout in seconds can be specified with `-t` argument. System default timeout is usually too high, I recommend experimenting with lower values such as 15 (seconds).
 
-Because the download process is very I/O oriented, a number of Python threads are created to concurrently fetch peers data of different domains. The number of these threads can be specified with `-n` argument. By default, four times the cpu count download threads are created. Inter-thread communication is done using Python's `deque` because it provides bi-directional, non-blocking and thread-safe O(1) `append` and `pop` methods.
+Because the download process is I/O heavy, a number of Python threads are created to concurrently fetch peers data of different domains. The number of these threads can be specified with `-n` argument. By default, four times the cpu count download threads are created. Inter-thread communication is done using Python's `deque` because it provides bi-directional, non-blocking and thread-safe O(1) `append` and `pop` methods.
 
 Because there can be (many) malicious (or irrelevant) domains, it is possible to exclude them from traversal as they are seen in peers. Exclusion is specified as a string matching the domain name from the end, hence it is possible to filter all subdomains with a single string. For example, `.activitypub-troll.cf` would filter any domain ending with this (thus all subdomains). Exclusion list is given as a file with `-e` argument, if no such list is given, known malicious domains are excluded by default. You can see them in `masnet/__init__.py` code.
 
@@ -29,19 +29,19 @@ The execution of `masnet.download` can be terminated gracefully with `Ctrl-C`. G
 
 All expected errors are handled gracefully with no stack trace printed to stdout or stderr. If you see any stack trace, that means there is an unexpected error and then the outputs of the program cannot be trusted.
 
-At the end of an execution (also when terminated by Ctrl-C), in addition to (many) `peers.json` and `.error` files, 3 files are generated containing:
+At the end of an execution (also when terminated by Ctrl-C), in addition to (many) `peers.json` and `.error` files, 5 files are generated:
 
-- list of (successfully) visited domains given by `--output-visits` argument, default file is `visits.out`.
-- list of domains where an error encountered given by `--output-errors` argument, default file is `errors.out`. For each domain, after a space, also the error message is saved.
-- list of skipped domains because of exclusion given by `--output-skips` argument, default file is `skips.out`.
+- `masnet.download.visits`: list of (successfully) visited domains
+- `masnet.download.errors`: list of domains where an error is encountered. For each domain, after a space, also the error message is saved.
+- `masnet.download.skips`: list of skipped domains
+- `masnet.download.times`: list of download times (in ms) of each peers.json file
+- `masnet.download.log`: a few information that might be useful to remember the context of this execution
 
-errors and skips files are only for information, whereas visits and peers.json files will be used with `masnet.generate` to further process the network.
+All files other than `*.peers.json` are only for information. Only peers.json files are used by `masnet.generate`.
 
-Because there is going to be many peers.jzon.gz files, the output directory can be specified with `-o` argument. By default it uses the current directory. The visits, errors and skips files are also saved under the directory specified. If the directory specified does not exist, it is created.
+Because there is going to be many peers.jzon files, the output directory can be specified with `-o` argument. By default it uses the current directory. All other files are also created in this directory. If the directory specified does not exist, it is created.
 
-Just for demonstration, `masnet.download` can be run only for a minute using `--demo` argument. It takes longer than a minute because already running tasks will be waited until they finish but no new task will be scheduled after a minute. This is enough for visiting some domains and gathering some data for a simple demonstration.
-
-An example run, with 15s timeout, saving files to current directory would be:
+An example run, with 30s timeout, saving files to current directory would be:
 
 ```
 $ masnet.download -t 30
@@ -65,7 +65,7 @@ The meaning of the fields are:
 
 The status line is printed every second and at the end of the execution.
 
-As of writing this (2022-12-09), it takes around 60 minutes for masnet.download to finish.
+As of writing this (2022-12-09), it takes around 60 minutes for masnet.download to finish on a 4-core virtual machine.
 
 # masnet.generate
 
@@ -95,6 +95,8 @@ bye.
 
 where `n` means number of nodes, `e` means number of edges and `t` means elapsed time.
 
+As of writing this (2022-12-10), it takes less than a minute to generate the graph.
+
 ## masnet.generate.graph format
 
 It is saved using Python struct pack/unpack methods. The field types below corresponds to the ones used in pack/unpack methods. All fields are saved in network byte order (with `!` in struct).
@@ -122,6 +124,7 @@ for edge 0 to E
 0.2:
 - major rewrite of masnet.download
 - initial release of masnet.generate
+- initial release of masnet.analyze
 
 0.1.1:
 - small fixes

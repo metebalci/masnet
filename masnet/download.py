@@ -16,7 +16,7 @@ import traceback
 from urllib.error import URLError, HTTPError
 import urllib.request
 from masnet import get_peers_file_path, get_error_file_path, load_exclusion
-from masnet import get_version, set_verbose, set_working_dir, verbose, debug
+from masnet import get_version, set_verbose, set_working_dir, debug
 from masnet import set_debug, is_excluded, get_path, is_debug, is_verbose
 from masnet import get_excluded_patterns
 
@@ -60,6 +60,7 @@ def are_all_downloads_terminated():
             return False
     return True
 
+# pylint: disable=unused-argument
 def skip_handler(idx,
                  qskip,
                  skips_filepath):
@@ -84,6 +85,7 @@ def skip_handler(idx,
 
     SKIP_HANDLER_TERMINATED = True
 
+# pylint: disable=unused-argument
 def error_handler(idx,
                   qerror,
                   errors_filepath):
@@ -114,6 +116,10 @@ def error_handler(idx,
 
     ERROR_HANDLER_TERMINATED = True
 
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-statements
 def download(idx,
              qerror,
              qdownload,
@@ -129,6 +135,7 @@ def download(idx,
 
     DOWNLOAD_TERMINATED[idx] = False
 
+    # pylint: disable=too-many-nested-blocks
     try:
         while THREADS_RUN:
             time.sleep(0)
@@ -254,16 +261,15 @@ def process(idx,
     domains.add(start_domain)
     qdownload.append({'domain': start_domain})
 
+    # pylint: disable=too-many-nested-blocks
     try:
         while THREADS_RUN:
             time.sleep(0)
             try:
                 len_qprocess = max(len_qprocess, len(qprocess))
                 req = qprocess.popleft()
-                domain = req['domain']
                 num_domains = num_domains + 1
                 peers = req['peers']
-                skip = False
                 for peer in peers:
                     # this is not needed, but just to handle bad responses safely
                     if peer is not None and len(peer) > 0:

@@ -4,17 +4,15 @@
 # pylint: disable=global-statement
 # pylint: disable=bare-except,broad-except
 import argparse
-from collections import deque
 import glob
 import json
-import os
 import time
 from masnet import get_version, set_verbose, set_debug, set_working_dir
-from masnet import verbose, debug, get_path
-from masnet import get_peers_file_path, load_exclusion, is_excluded
-from masnet import read_graph, write_graph
+from masnet import debug, get_path
+from masnet import write_graph
 
 # pylint: disable=too-many-statements
+# pylint: disable=too-many-locals
 def main():
     print('masnet v%s' % get_version())
     parser = argparse.ArgumentParser(prog='masnet.generate',
@@ -65,7 +63,7 @@ def main():
         # we already know these passed exclusion and has peers info
         print('creating nodes...')
         last_status = time.time() - 10
-        for file_name in glob.glob('*.peers.json'):
+        for file_name in glob.glob(get_path('*.peers.json')):
             if (time.time() - last_status) > 1:
                 print_status()
                 last_status = time.time()
@@ -81,12 +79,12 @@ def main():
         # also filter non-existent peers
         print('creating edges...')
         last_status = time.time() - 10
-        for key,d in nodes.items():
+        for doc in nodes.values():
             if (time.time() - last_status) > 1:
                 print_status()
                 last_status = time.time()
-            domain_id = d['id']
-            for peer_name in d['peers']:
+            domain_id = doc['id']
+            for peer_name in doc['peers']:
                 # there should be no need for None and len=0 checks
                 # but I saw such data can be returned from peers api call
                 # so clean it up
