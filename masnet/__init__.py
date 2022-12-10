@@ -102,8 +102,8 @@ def set_working_dir(wd):
         os.makedirs(DIR, exist_ok=True)
 
 
-def write_graph(nodes, edges):
-    with open(get_path('masnet.generate.graph'), 'wb') as f:
+def write_graph(nodes, edges, file_path):
+    with open(file_path, 'wb') as f:
         f.write(pack('!I', len(nodes)))
         for domain, doc in nodes.items():
             _id = doc['id']
@@ -119,7 +119,7 @@ def write_graph(nodes, edges):
 def read_graph(file_path):
     nodes = {}
     edges = list()
-    with open(get_path('masnet.generate.graph'), 'rb') as f:
+    with open(file_path, 'rb') as f:
         data = f.read()
         off = 0
         (len_nodes,) = unpack('!I', data[off:off+4])
