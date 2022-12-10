@@ -1,0 +1,43 @@
+# RFC 2606
+^\.test$
+^\.example$
+^\.invalid$
+^\.localhost$
+^\.example.com$
+^\.example.net$
+^\.example.org$
+
+# RFC 8375
+^\.home.arpa$
+
+# by another RFC ?
+^localhost$
+^\.local$
+
+# IPv4 private
+^192\.168\.
+^172\.1[6-9]\.
+^172\.2[0-9]\.
+^172\.30\.
+^172\.31\.
+^10\.
+
+# IPv6 private
+# fc00::/7
+^\[f[c-d][a-f0-9\:]+\]$
+# fec0::/10
+^\[fec[a-f0-9\:]+\]$
+
+# malicious domains
+\.activitypub-troll\.cf$
+\.misskey-forkbomb\.cf$
+\.repl\.co$
+\.websec\.saarland$
+\.glaceon\.social$
+\.cispa\.saarland$
+\.monads\.online$
+\.egirls\.gay$
+\.skorpil\.cz$
+\.pixie\.town$
+\.masto\.host$
+\.hwl\.li$
