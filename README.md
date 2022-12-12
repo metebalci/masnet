@@ -25,7 +25,7 @@ Each command provide verbose logging with `-v` argument and debug logging with `
 
 # hardware requirements
 
-Mastodon graph has over 10K vertices and more than 20M edges.
+Mastodon graph has over 10K vertices and more than 20M edges. It is not a large graph but also not small, so you probably need a few GB of free memory.
 
 # masnet.download
 
