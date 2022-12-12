@@ -1,8 +1,11 @@
 # pylint: disable=missing-module-docstring
+# pylint: disable=missing-function-docstring
 import gzip
 import os
 import re
 from struct import pack, unpack
+import time
+import networkit as nk
 
 try:
     import importlib.resources as pkg_resources
@@ -32,10 +35,10 @@ def get_error_file_name(domain):
 def get_error_file_path(domain):
     return get_path(get_error_file_name(domain))
 
-excluded_patterns = []
+EXCLUDED_PATTERNS = list()
 
 def load_exclusion(exclude_file):
-    global excluded_patterns
+    global EXCLUDED_PATTERNS
     def load_exclusion_file(f):
         for line in f:
             line = line.strip()
@@ -44,29 +47,29 @@ def load_exclusion(exclude_file):
             if len(line) == 0:
                 continue
             verbose(line)
-            excluded_patterns.append(re.compile(line))
+            EXCLUDED_PATTERNS.append(re.compile(line))
     verbose('--- start of exclusion patterns ---')
     if exclude_file is None:
         with pkg_resources.path('masnet',
                                 'default_exclusion_patterns') as ipath:
             verbose('loading internal exclusion list from: %s' % ipath)
-            with open(ipath, 'r') as f:
-                load_exclusion_file(f)
+            with open(ipath, 'r') as file:
+                load_exclusion_file(file)
     else:
         verbose('loading external exclusion list from: %s' % exclude_file)
-        with open(exclude_file, 'r') as f:
-            load_exclusion_file(f)
+        with open(exclude_file, 'r') as file:
+            load_exclusion_file(file)
     verbose('--- end of exclusion patterns ---')
 
 def is_excluded(domain):
-    for pattern in excluded_patterns:
+    for pattern in EXCLUDED_PATTERNS:
         if pattern.search(domain, re.IGNORECASE) is not None:
             debug('%s excluded due to: %s' % (domain, pattern))
             return True
     return False
 
 def get_excluded_patterns():
-    return excluded_patterns
+    return EXCLUDED_PATTERNS
 
 VERBOSE = False
 def set_verbose(verbose):
@@ -102,38 +105,54 @@ def set_working_dir(wd):
         os.makedirs(DIR, exist_ok=True)
 
 
-def write_graph(nodes, edges, file_path):
-    with open(file_path, 'wb') as f:
-        f.write(pack('!I', len(nodes)))
-        for domain, doc in nodes.items():
-            _id = doc['id']
-            domain_bytes = domain.encode('utf-8')
-            f.write(pack('!II', _id, len(domain_bytes)))
-            f.write(domain_bytes)
-        f.write(pack('!I', len(edges)))
-        for src, dst in edges:
-            f.write(pack('!II', src, dst))
+def percent_progress(x):
+    if x == -1:
+        percent_progress.last = 0
+    elif x == 2:
+        print('100%')
+    elif (time.time() - percent_progress.last) > 1:
+        print('%d%% ' % (x*100), end='', flush=True)
+        percent_progress.last = time.time()
 
 
-# returns nodes list of (id -> str), edges list of (src id, dst id)
-def read_graph(file_path):
-    nodes = {}
-    edges = list()
-    with open(file_path, 'rb') as f:
-        data = f.read()
-        off = 0
-        (len_nodes,) = unpack('!I', data[off:off+4])
-        off += 4
-        for _ in range(0, len_nodes):
-            (_id, len_domain) = unpack('!II', data[off:off+8])
-            off += 8
-            domain = data[off:off+len_domain].decode('utf-8')
-            off += len_domain
-            nodes[_id] = domain
-        (len_edges,) = unpack('!I', data[off:off+4])
-        off += 4
-        for _ in range(0, len_edges):
-            (src, dst) = unpack('!II', data[off:off+8])
-            off += 8
-            edges.append((src, dst))
-    return nodes, edges
+def save_graph(adjlists,
+               file_path,
+               progressfn=None):
+    if progressfn:
+        progressfn(-1)
+    g = nk.Graph(n=len(adjlists),
+                 directed=True)
+    # pylint: disable=consider-using-enumerate
+    # not enumerating to preserve the order 0...n
+    for i in range(0, len(adjlists)):
+        if progressfn:
+            progressfn(i/len(adjlists))
+        adjlist = adjlists[i]
+        for adj_vertex_id in sorted(adjlist):
+            g.addEdge(i, adj_vertex_id)
+    # save graph
+    nk.writeGraph(g,
+                  file_path,
+                  nk.Format.NetworkitBinary,
+                  chunks=32,
+                  NetworkitBinaryWeights=0) # 0=no weight
+    if progressfn:
+        progressfn(2)
+
+
+def save_labels(id2labels, file_path):
+    with open(get_path(file_path), 'w') as file:
+        # pylint: disable=consider-using-enumerate
+        # not enumerating to preserve the order 0...n
+        for i in range(0, len(id2labels)):
+            file.write('%s\n' % id2labels[i])
+
+
+def load_labels(file_path):
+    id2labels = {}
+    i = 0
+    with open(get_path(file_path), 'r') as file:
+        for line in file:
+            id2labels[i] = line.strip()
+            i = i + 1
+    return id2labels

@@ -9,7 +9,8 @@ import json
 import time
 from masnet import get_version, set_verbose, set_debug, set_working_dir
 from masnet import debug, get_path
-from masnet import write_graph
+from masnet import save_graph, percent_progress
+from masnet import save_labels, load_labels
 
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-locals
@@ -20,8 +21,7 @@ def main():
                                      epilog='')
 
     parser.add_argument('-d', '--dir',
-                        help='use specified directory for files ' \
-                             '(default: current directory)',
+                        help='use specified directory for files',
                         required=False)
 
     parser.add_argument('--debug',
@@ -42,8 +42,16 @@ def main():
     debug(str(args))
     set_working_dir(args.dir)
 
-    nodes = {}
-    edges = []
+    # vertex_id -> label (domain)
+    id2label = {}
+    # label -> vertex_id
+    label2id = {}
+    # vertex_id -> adjlist of this vertex
+    adjlist = {}
+    # vertex_id -> list of peers from json (domain names)
+    peers = {}
+    num_vertices = 0
+    num_edges = 0
     start = time.time()
 
     def print_status():
@@ -51,8 +59,8 @@ def main():
         hours = int(elapsed / 3600)
         minutes = int((elapsed - hours * 3600) / 60)
         seconds = elapsed - minutes * 60 - hours * 3600
-        print('n:%08d e:%08d ' \
-              't:%02d:%02d:%02d ' % (len(nodes), len(edges),
+        print('v:%08d e:%08d ' \
+              't:%02d:%02d:%02d ' % (num_vertices, num_edges,
                                      hours, minutes, seconds))
 
 
@@ -61,7 +69,7 @@ def main():
         # this is the best way because otherwise exclusion and errors has to
         # be re-checked, computationally expensive
         # we already know these passed exclusion and has peers info
-        print('creating nodes...')
+        print('creating the graph from peers...')
         last_status = time.time() - 10
         for file_name in glob.glob(get_path('*.peers.json')):
             if (time.time() - last_status) > 1:
@@ -72,19 +80,18 @@ def main():
                 # reading the domain from the file, so this is the actual
                 # domain
                 domain = doc['domain']
-                peers = doc['peers']
-                nodes[domain] = {'id': len(nodes),
-                                 'peers': peers}
-        # create edges
-        # also filter non-existent peers
-        print('creating edges...')
-        last_status = time.time() - 10
-        for doc in nodes.values():
+                vertex_id = num_vertices
+                num_vertices = num_vertices + 1
+                label2id[domain] = vertex_id
+                id2label[vertex_id] = domain
+                peers[vertex_id] = doc['peers']
+                # adjlist is a set, hence no multiple edges
+                adjlist[vertex_id] = set()
+        for vertex_id, vertex_peers in peers.items():
             if (time.time() - last_status) > 1:
                 print_status()
                 last_status = time.time()
-            domain_id = doc['id']
-            for peer_name in doc['peers']:
+            for peer_name in vertex_peers:
                 # there should be no need for None and len=0 checks
                 # but I saw such data can be returned from peers api call
                 # so clean it up
@@ -92,15 +99,35 @@ def main():
                     continue
                 if len(peer_name.strip()) == 0:
                     continue
-                # filter if not exist in nodes
-                if peer_name in nodes:
-                    peer_id = nodes[peer_name]['id']
-                    edges.append((domain_id, peer_id))
+                # filter if peer is not a known vertex
+                # Mastodon peers usually contain many strange domains:
+                # - private IP addresses
+                # - malicious domains
+                # - not working domains
+                if peer_name in label2id:
+                    peer_vertex_id = label2id[peer_name]
+                    # do not allow self-loops
+                    if peer_vertex_id != vertex_id:
+                        adjlist[vertex_id].add(peer_vertex_id)
+                        num_edges = num_edges + 1
+
+        del peers
 
         print_status()
+        print('graph created.')
 
-        write_graph(nodes, edges)
-        print('saved to masnet.generate.graph')
+        save_labels(id2label,
+                    get_path('mastodon.labels'))
+        print('labels saved.')
+
+        del id2label
+        del label2id
+
+        print('saving graph...')
+        save_graph(adjlist,
+                   get_path('mastodon.graph'),
+                   progressfn=percent_progress)
+        print('graph saved.')
 
     except KeyboardInterrupt:
         pass

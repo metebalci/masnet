@@ -292,15 +292,25 @@ def main():
                                      description='',
                                      epilog='')
 
-    parser.add_argument('-d', '--discard',
-                        help='discard cached peers.json files, ' \
-                             'redownloads everything (default: false)',
+    parser.add_argument('-d', '--dir',
+                        help='use specified directory for files',
+                        required=False)
+
+    parser.add_argument('--debug',
+                        help='enables debug logging',
                         action='store_true',
                         required=False,
                         default=False)
 
-    parser.add_argument('--debug',
-                        help='enables debug logging',
+    parser.add_argument('-v', '--verbose',
+                        help='enable verbose logging, mostly for development',
+                        action='store_true',
+                        required=False,
+                        default=False)
+
+    parser.add_argument('--discard',
+                        help='discard cached peers.json files, ' \
+                             'redownloads everything (default: false)',
                         action='store_true',
                         required=False,
                         default=False)
@@ -322,12 +332,6 @@ def main():
                         required=False,
                         default=cpu_count*8)
 
-    parser.add_argument('-o', '--output-dir',
-                        help='use specified directory for files, it creates ' \
-                             'the directory if not exists ' \
-                             '(default: current directory)',
-                        required=False)
-
     parser.add_argument('-s', '--start-domain',
                         help='domains to start traversal from (default: mastodon.social)',
                         required=False,
@@ -340,18 +344,12 @@ def main():
                         required=False,
                         default=-1)
 
-    parser.add_argument('-v', '--verbose',
-                        help='enable verbose logging, mostly for development',
-                        action='store_true',
-                        required=False,
-                        default=False)
-
     args = parser.parse_args()
     set_debug(args.debug)
     set_verbose(args.verbose)
     debug(str(args))
     load_exclusion(args.exclude_file)
-    set_working_dir(args.output_dir)
+    set_working_dir(args.dir)
 
     # reset files
     errors_filepath = get_path('masnet.download.errors')
@@ -428,7 +426,7 @@ def main():
         minutes = int((elapsed - hours * 3600) / 60)
         seconds = elapsed - minutes * 60 - hours * 3600
         status = 'd:%06d e:%06d s:%08d qd:%08d ' \
-            'e:%02d:%02d:%02d ' \
+            't:%02d:%02d:%02d ' \
             'da:%d to:%d' % (num_domains,
                              num_errors,
                              num_skips,
