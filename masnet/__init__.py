@@ -10,7 +10,7 @@ try:
 except ImportError:
     import importlib_resources as pkg_resources
 
-__version__ = '0.3'
+__version__ = '0.3.1'
 
 def get_version():
     return __version__
