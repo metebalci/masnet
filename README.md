@@ -216,6 +216,9 @@ On [network.bastodon.org](https://network.bastodon.org), the network card of the
 
 # Release History
 
+0.3.5:
+- masnet.generate fix
+
 0.3.4:
 - masnet.analyze --card fix for directed graphs
 

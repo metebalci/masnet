@@ -10,7 +10,7 @@ try:
 except ImportError:
     import importlib_resources as pkg_resources
 
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 
 def get_version():
     return __version__
@@ -137,7 +137,7 @@ def save_graph(adjlists,
             if create_directed:
                 g.addEdge(i, adj_vertex_id)
             # prevent adding both u->v and v->u if undirected
-            elif i > adj_vertex_id:
+            elif not g.hasEdge(i, adj_vertex_id):
                 g.addEdge(i, adj_vertex_id)
 
     # save graph

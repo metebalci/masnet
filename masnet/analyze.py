@@ -151,15 +151,22 @@ def main():
         k_avg = k_avg / N
 
         component_sizes = None
+        strongly_connected = False
+        weakly_connected = False
 
         if g.isDirected():
-
-            components_run = nk.components.WeaklyConnectedComponents(g)
+            components_run = nk.components.StronglyConnectedComponents(g)
             components_run.run()
             component_sizes = components_run.getComponentSizes()
-
+            if len(component_sizes) == 1:
+                strongly_connected = True
+            else:
+                components_run = nk.components.WeaklyConnectedComponents(g)
+                components_run.run()
+                component_sizes = components_run.getComponentSizes()
+                if len(component_sizes) == 1:
+                    weakly_connected = True
         else:
-
             components_run = nk.components.ConnectedComponents(g)
             components_run.run()
             component_sizes = components_run.getComponentSizes()
@@ -181,57 +188,79 @@ def main():
             card.append(['Clustering', 'n/a'])
         else:
             lcc_run = nk.centrality.LocalClusteringCoefficient(g,
-                                                            turbo=True)
+                                                               turbo=True)
             lcc_run.run()
             avg_clustering = sum(lcc_run.scores()) / N
             card.append(['Clustering', '%.3f' % avg_clustering])
 
         if len(component_sizes) == 1:
 
-            card.append(['Connected', 'Yes'])
-
             if g.isDirected():
-                card.append(['Diameter', 'n/a'])
+                if strongly_connected:
+                    card.append(['Connected', 'Strongly connected'])
+                    apsp = nk.distance.APSP(g)
+                    apsp.run()
+                    diameter = 0
+                    for u in g.numberOfNodes():
+                        for v in g.numberOfNodes():
+                            d = apsp.getDistance(u, v)
+                            if d > diameter:
+                                max_distance = diameter
+                    card.append(['Diameter', '%d' % diameter])
+                elif weakly_connected:
+                    card.append(['Connected', 'Weakly connected'])
+                    card.append(['Diameter', 'n/a'])
+                else:
+                    raise Exception('This should be unreachable !!!')
             else:
+                card.append(['Connected', 'Yes'])
                 diameter_run = nk.distance.Diameter(g,
                                                     algo=nk.distance.DiameterAlgo.Exact)
                 diameter_run.run()
-                diamater = diameter_run.getDiameter()
-                card.append(['Diameter', '%.3f' % diameter])
+                diameter = diameter_run.getDiameter()[0]
+                card.append(['Diameter', '%d' % diameter])
 
         else:
 
-            comp_sizes = component_sizes.values()
-            Nmaxcomp = max(comp_sizes)
-            card.append(['Connected',
-                         '%d components [%.1f%% in largest]' % (len(component_sizes),
-                                                                100*Nmaxcomp/N)])
-            Nmincomp = min(comp_sizes)
-            Navgcomp = sum(comp_sizes) / len(comp_sizes)
-            card.append(['Component size*', '%.1f [%d, %d]' % (Navgcomp,
-                                                               Nmincomp,
-                                                               Nmaxcomp)])
-            card.append(['Diameter', 'n/a'])
+            if g.isDirected():
+                card.append(['Connected', 'Disconnected'])
+                card.append(['Diameter', 'n/a'])
+            else:
+                comp_sizes = component_sizes.values()
+                Nmaxcomp = max(comp_sizes)
+                card.append(['Connected',
+                             '%d components [%.1f%% in largest]' % (len(component_sizes),
+                                                                    100*Nmaxcomp/N)])
+                Nmincomp = min(comp_sizes)
+                Navgcomp = sum(comp_sizes) / len(comp_sizes)
+                card.append(['Component size*', '%.1f [%d, %d]' % (Navgcomp,
+                                                                   Nmincomp,
+                                                                   Nmaxcomp)])
+                card.append(['Diameter', 'n/a'])
 
-            largest_component = components_run.extractLargestConnectedComponent(g,
-                                                                                False)
-            diameter_run = nk.distance.Diameter(largest_component,
-                                                algo=nk.distance.DiameterAlgo.Exact)
-            diameter_run.run()
-            diameter = diameter_run.getDiameter()[0]
-            card.append(['Largest component\'s diameter', '%d' % diameter])
+                largest_component = components_run.extractLargestConnectedComponent(g,
+                                                                                    False)
+                diameter_run = nk.distance.Diameter(largest_component,
+                                                    algo=nk.distance.DiameterAlgo.Exact)
+                diameter_run.run()
+                diameter = diameter_run.getDiameter()[0]
+                card.append(['Largest component\'s diameter', '%d' % diameter])
 
         card.append(SEPARATING_LINE)
         card.append(['Data generating process', 'masnet.download, masnet.generate'])
 
         print(tabulate(card))
         print('*: avg [min, max]')
+        if g.isDirected():
+            print('Weakly connected components are shown.')
 
         if len(args.card) > 0:
             with open(get_path(args.card), 'w') as f:
                 f.write(tabulate(card))
                 f.write('\n')
                 f.write('*: avg [min, max]\n')
+                if g.isDirected():
+                    f.write('Weakly connected components are shown.\n')
 
     elif args.strongly_connected_components:
 
