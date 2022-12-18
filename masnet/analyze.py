@@ -150,9 +150,19 @@ def main():
             k_avg = k_avg + k
         k_avg = k_avg / N
 
-        components_run = nk.components.ConnectedComponents(g)
-        components_run.run()
-        component_sizes = components_run.getComponentSizes()
+        component_sizes = None
+
+        if g.isDirected():
+
+            components_run = nk.components.WeaklyConnectedComponents(g)
+            components_run.run()
+            component_sizes = components_run.getComponentSizes()
+
+        else:
+
+            components_run = nk.components.ConnectedComponents(g)
+            components_run.run()
+            component_sizes = components_run.getComponentSizes()
 
         card = []
         card.append(['Name', 'Mastodon peers network'])
@@ -178,14 +188,19 @@ def main():
 
         if len(component_sizes) == 1:
 
-            diameter_run = nk.distance.Diameter(g,
-                                                algo=nk.distance.DiameterAlgo.Exact)
-            diameter_run.run()
-            diamater = diameter_run.getDiameter()
-
             card.append(['Connected', 'Yes'])
-            card.append(['Diameter', '%.3f' % diameter])
+
+            if g.isDirected():
+                card.append(['Diameter', 'n/a'])
+            else:
+                diameter_run = nk.distance.Diameter(g,
+                                                    algo=nk.distance.DiameterAlgo.Exact)
+                diameter_run.run()
+                diamater = diameter_run.getDiameter()
+                card.append(['Diameter', '%.3f' % diameter])
+
         else:
+
             comp_sizes = component_sizes.values()
             Nmaxcomp = max(comp_sizes)
             card.append(['Connected',
@@ -194,8 +209,8 @@ def main():
             Nmincomp = min(comp_sizes)
             Navgcomp = sum(comp_sizes) / len(comp_sizes)
             card.append(['Component size*', '%.1f [%d, %d]' % (Navgcomp,
-                                                              Nmincomp,
-                                                              Nmaxcomp)])
+                                                               Nmincomp,
+                                                               Nmaxcomp)])
             card.append(['Diameter', 'n/a'])
 
             largest_component = components_run.extractLargestConnectedComponent(g,
