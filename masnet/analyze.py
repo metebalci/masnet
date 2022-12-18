@@ -46,9 +46,11 @@ def main():
 
     parser.add_argument('--card',
                         help='shows the network card',
-                        action='store_true',
+                        metavar='CARDS_FILE',
+                        nargs='?',
+                        const='',
                         required=False,
-                        default=False)
+                        default=None)
 
     parser.add_argument('--strongly-connected-components',
                         help='(experimental)',
@@ -129,7 +131,7 @@ def main():
             sys.exit(-1)
     print('graph read in %.1f seconds.' % (time.time() - start))
 
-    if args.card:
+    if args.card is not None:
 
         print('generating the network card...')
 
@@ -208,8 +210,13 @@ def main():
         card.append(['Data generating process', 'masnet.download, masnet.generate'])
 
         print(tabulate(card))
-
         print('*: avg [min, max]')
+
+        if len(args.card) > 0:
+            with open(get_path(args.card), 'w') as f:
+                f.write(tabulate(card))
+                f.write('\n')
+                f.write('*: avg [min, max]\n')
 
     elif args.strongly_connected_components:
 
@@ -293,7 +300,7 @@ def main():
                       nk.graphio.Format.GML)
 
     else:
-        parser.print_help(sys.stdout)
+        parser.print_help()
 
 if __name__ == '__main__':
     main()

@@ -212,6 +212,9 @@ Each analysis is requested with an argument to `masnet.analyze`. Please check th
 
 # Release History
 
+0.3.2:
+- masnet.analyze --card file support
+
 0.3.1:
 - pypi fix
 
