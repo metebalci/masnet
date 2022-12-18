@@ -17,7 +17,7 @@ from masnet import load_labels, get_path, pltpause
 # pylint: disable=too-many-locals
 def main():
     print('masnet v%s' % get_version())
-    parser = argparse.ArgumentParser(prog='masnet.generate',
+    parser = argparse.ArgumentParser(prog='masnet.analyze',
                                      description='',
                                      epilog='')
 
