@@ -212,7 +212,7 @@ Each analysis is requested with an argument to `masnet.analyze`. Please check th
 
 # Demo
 
-On (network.bastodon.org)[https://network.bastodon.org], the network card of the daily snapshot of Mastodon peer network can be seen.
+On [network.bastodon.org](https://network.bastodon.org), the network card of the daily snapshot of Mastodon peer network can be seen.
 
 # Release History
 
