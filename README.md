@@ -23,7 +23,7 @@ There a few common arguments to each command:
 
 Each command provide verbose logging with `-v` argument and debug logging with `--debug` argument.
 
-In the software and documentation, I prefer to use the term Graph (rather than Network) but instead of Vertex and Edge, I try to stick to terms Node and Link.
+In the software and documentation, I use both Graph and Network interchangeably, but instead of Vertex and Edge, I try to stick to terms Node and Link.
 
 The input and output file names cannot be customized, as I think the tools will be run on a clean directory (due to large number of files).
 
