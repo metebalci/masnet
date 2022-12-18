@@ -5,9 +5,13 @@
 # pylint: disable=bare-except,broad-except
 import argparse
 import time
+import matplotlib.pyplot as plt
 import networkit as nk
+import networkit.vizbridges as nkvz
+import numpy
+from tabulate import tabulate, SEPARATING_LINE
 from masnet import get_version, set_verbose, set_debug, debug, set_working_dir
-from masnet import load_labels, get_path
+from masnet import load_labels, get_path, pltpause
 
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-locals
@@ -34,31 +38,67 @@ def main():
                         required=False,
                         default=False)
 
-    parser.add_argument('--degrees',
-                        help='saves kin, kout and label to mastodon.degrees',
+    parser.add_argument('--directed',
+                        help='use directed graph (default: use undirected)',
                         action='store_true',
                         required=False,
                         default=False)
 
-    parser.add_argument('--degree-centrality-ranks',
-                        help='',
-                        nargs='?',
-                        type=int,
-                        const=10,
+    parser.add_argument('--card',
+                        help='shows the network card',
+                        action='store_true',
+                        required=False,
+                        default=False)
+
+    parser.add_argument('--strongly-connected-components',
+                        help='(experimental)',
+                        action='store_true',
+                        default=None,
+                        required=False)
+
+    parser.add_argument('--local-clustering-coefficients',
+                        help='(experimental)',
+                        action='store_true',
+                        default=None,
+                        required=False)
+
+    parser.add_argument('--cut-clusters',
+                        help='(experimental)',
+                        action='store_true',
+                        default=None,
+                        required=False)
+
+    parser.add_argument('--core-decomposition',
+                        help='(experimental)',
+                        action='store_true',
+                        default=None,
                         required=False)
 
     parser.add_argument('--detect-communities',
-                        help='',
+                        help='(experimental)',
                         action='store_true',
-                        required=False,
-                        default=False)
+                        default=None,
+                        required=False)
+
+    parser.add_argument('--prune',
+                        help='(experimental)',
+                        choices=['out-degree'],
+                        default=None,
+                        required=False)
+
+    parser.add_argument('--prune-cutoff',
+                        help='(experimental)',
+                        type=int,
+                        default=0,
+                        required=False)
+
+    parser.add_argument('--prune-out',
+                        help='(experimental)',
+                        default='mastodon.partition.graph',
+                        required=False)
 
     parser.add_argument('--degree-centrality',
-                        action='store_true',
-                        required=False,
-                        default=False)
-
-    parser.add_argument('--greedy-modularity',
+                        help='(experimental)',
                         action='store_true',
                         required=False,
                         default=False)
@@ -70,47 +110,190 @@ def main():
     set_working_dir(args.dir)
 
     id2label = load_labels(get_path('mastodon.labels'))
-    print('vertex labels loaded.')
-    print('reading graph into networkit...')
+    print('node labels loaded.')
     start = time.time()
-    g = nk.readGraph(get_path('mastodon.graph'),
-                     nk.graphio.Format.NetworkitBinary)
+    g = None
+    if args.directed:
+        print('reading directed graph into networkit...')
+        g = nk.readGraph(get_path('mastodon.networkit.directed'),
+                         nk.graphio.Format.NetworkitBinary)
+        if not g.isDirected():
+            print('mastodon.networkit.directed is undirected ?!')
+            sys.exit(-1)
+    else:
+        print('reading undirected graph into networkit...')
+        g = nk.readGraph(get_path('mastodon.networkit.undirected'),
+                        nk.graphio.Format.NetworkitBinary)
+        if g.isDirected():
+            print('mastodon.networkit.undirected is directed ?!')
+            sys.exit(-1)
     print('graph read in %.1f seconds.' % (time.time() - start))
 
-    if args.degrees:
+    if args.card:
 
-        print('calculating degrees...')
-        l = list()
-        for vertex_id in range(0, g.numberOfNodes()):
-            vertex_label = id2label[vertex_id]
-            kin = g.degreeIn(vertex_id)
-            kout = g.degreeOut(vertex_id)
-            l.append((kin, kout, vertex_label))
+        print('generating the network card...')
 
-        print('saving degrees...')
-        with open(get_path('mastodon.degrees'), 'w') as degf:
-            for (kin, kout, vertex_label) in sorted(l,
-                                                    key=lambda x: x[0]+x[1],
-                                                    reverse=True):
-                degf.write('%d %d %s\n' % (kin, kout, vertex_label))
+        N = g.numberOfNodes()
+        L = g.numberOfEdges()
 
-        print('done.')
+        k_avg = 0
+        k_min = N-1
+        k_max = 0
+        for node_id in g.iterNodes():
+            k = g.degree(node_id)
+            if k < k_min:
+                k_min = k
+            if k > k_max:
+                k_max = k
+            k_avg = k_avg + k
+        k_avg = k_avg / N
 
-    if args.degree_centrality_ranks is not None:
+        components_run = nk.components.ConnectedComponents(g)
+        components_run.run()
+        component_sizes = components_run.getComponentSizes()
 
-        print('calculating degree centrality...')
-        deg = nk.centrality.DegreeCentrality(g,
-                                             normalized=True,
-                                             outDeg=True)
-        deg.run()
-        ranks = deg.ranking()[:args.degree_centrality_ranks]
-        print('done.')
+        card = []
+        card.append(['Name', 'Mastodon peers network'])
+        card.append(['Kind', '%s, %s' % ('directed' if g.isDirected() else 'undirected',
+                                         'weighted' if g.isWeighted() else 'unweighted')])
+        card.append(['Nodes are', 'Mastodon instances'])
+        card.append(['Links are', 'Peer relationship'])
+        card.append(SEPARATING_LINE)
+        card.append(['Number of nodes', N])
+        card.append(['Number of links', L])
+        card.append(['Degree*', '%.3f [%d, %d]' % (k_avg,
+                                                   k_min,
+                                                   k_max)])
+
+        if g.isDirected():
+            card.append(['Clustering', 'n/a'])
+        else:
+            lcc_run = nk.centrality.LocalClusteringCoefficient(g,
+                                                            turbo=True)
+            lcc_run.run()
+            avg_clustering = sum(lcc_run.scores()) / N
+            card.append(['Clustering', '%.3f' % avg_clustering])
+
+        if len(component_sizes) == 1:
+
+            diameter_run = nk.distance.Diameter(g,
+                                                algo=nk.distance.DiameterAlgo.Exact)
+            diameter_run.run()
+            diamater = diameter_run.getDiameter()
+
+            card.append(['Connected', 'Yes'])
+            card.append(['Diameter', '%.3f' % diameter])
+        else:
+            comp_sizes = component_sizes.values()
+            Nmaxcomp = max(comp_sizes)
+            card.append(['Connected',
+                         '%d components [%.1f%% in largest]' % (len(component_sizes),
+                                                                100*Nmaxcomp/N)])
+            Nmincomp = min(comp_sizes)
+            Navgcomp = sum(comp_sizes) / len(comp_sizes)
+            card.append(['Component size*', '%.1f [%d, %d]' % (Navgcomp,
+                                                              Nmincomp,
+                                                              Nmaxcomp)])
+            card.append(['Diameter', 'n/a'])
+
+            largest_component = components_run.extractLargestConnectedComponent(g,
+                                                                                False)
+            diameter_run = nk.distance.Diameter(largest_component,
+                                                algo=nk.distance.DiameterAlgo.Exact)
+            diameter_run.run()
+            diameter = diameter_run.getDiameter()[0]
+            card.append(['Largest component\'s diameter', '%d' % diameter])
+
+        card.append(SEPARATING_LINE)
+        card.append(['Data generating process', 'masnet.download, masnet.generate'])
+
+        print(tabulate(card))
+
+        print('*: avg [min, max]')
+
+    elif args.strongly_connected_components:
+
+        scc = nk.components.StronglyConnectedComponents(g)
+        scc.run()
+        print('# of strongly connected components: %d' % scc.numberOfComponents())
+        print('component sizes: %s' % scc.getComponentSizes().values())
+
+    elif args.local_clustering_coefficients:
+
+        lcc = nk.centrality.LocalClusteringCoefficient(ug,
+                                                       turbo=True)
+        lcc.run()
+        ranks = lcc.ranking()[:100]
         for rank in ranks:
             domain = id2label[rank[0]]
-            centrality = rank[1]
-            print('%s %0.3f' % (domain, centrality))
+            local_clustering_coefficient = rank[1]
+            print('%s %0.3f' % (domain, local_clustering_coefficient))
 
-    print('bye.')
+    elif args.cut_clusters:
+
+        for alpha in [0, 0.25, 0.5, 0.75, 1]:
+            cc = nk.community.CutClustering(g, alpha)
+            cc.run()
+
+    elif args.detect_communities:
+
+        #cs = nk.community.detectCommunities(ug)
+        cs = nk.community.detectCommunities(ug,
+                                            algo=nk.community.PLM(ug, True))
+        print(cs.subsetSizes())
+
+    elif args.degree_centrality:
+
+        dc = sorted(nk.centrality.DegreeCentrality(g,
+                                                   normalized=False,
+                                                   outDeg=True).run().scores(),
+                    reverse=True)
+
+        degrees, number_of_nodes = numpy.unique(dc, return_counts=True)
+
+        plt.xscale('log')
+        plt.xlabel('degree')
+        plt.yscale('log')
+        plt.ylabel('number of nodes')
+        plt.title('degree distribution')
+        plt.plot(degrees, number_of_nodes)
+        plt.show(block=False)
+        pltpause()
+
+    elif args.core_decomposition:
+
+        cd = nk.centrality.CoreDecomposition(ug)
+        cd.run()
+        scores = cd.scores()
+        max_score = max(scores)
+        print('max score: %s' % max_score)
+        snodes = list()
+        for node_id in g.iterNodes():
+            if scores[node_id] == max_score:
+                snodes.append(node_id)
+
+        sg = nk.graphtools.subgraphFromNodes(ug, snodes)
+        print(sg.numberOfNodes())
+        print(sg.numberOfEdges())
+        nk.writeGraph(sg,
+                      'core-decomposition.gml',
+                      nk.graphio.Format.GML)
+
+    elif args.prune is not None:
+        degrees = list()
+        for node_id in g.iterNodes():
+            kin = g.degreeIn(node_id)
+            kout = g.degreeOut(node_id)
+            degrees.append((kin, kout, node_id))
+        degrees = sorted(degrees, key=lambda x: x[1], reverse=True)
+        kept_nodes = list(map(lambda x: x[2], degrees[0:100]))
+        pruned_graph = nk.graphtools.subgraphFromNodes(g, kept_nodes)
+        nk.writeGraph(pruned_graph,
+                      'mastodon.partition.gml',
+                      nk.graphio.Format.GML)
+
+    else:
+        parser.print_help(sys.stdout)
 
 if __name__ == '__main__':
     main()

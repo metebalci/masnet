@@ -42,16 +42,16 @@ def main():
     debug(str(args))
     set_working_dir(args.dir)
 
-    # vertex_id -> label (domain)
+    # node_id -> label (domain)
     id2label = {}
-    # label -> vertex_id
+    # label -> node_id
     label2id = {}
-    # vertex_id -> adjlist of this vertex
+    # node_id -> adjlist of this node
     adjlist = {}
-    # vertex_id -> list of peers from json (domain names)
+    # node_id -> list of peers from json (domain names)
     peers = {}
-    num_vertices = 0
-    num_edges = 0
+    num_nodes = 0
+    num_links = 0
     start = time.time()
 
     def print_status():
@@ -59,8 +59,8 @@ def main():
         hours = int(elapsed / 3600)
         minutes = int((elapsed - hours * 3600) / 60)
         seconds = elapsed - minutes * 60 - hours * 3600
-        print('v:%08d e:%08d ' \
-              't:%02d:%02d:%02d ' % (num_vertices, num_edges,
+        print('N:%08d L:%08d ' \
+              'e:%02d:%02d:%02d ' % (num_nodes, num_links,
                                      hours, minutes, seconds))
 
 
@@ -80,18 +80,18 @@ def main():
                 # reading the domain from the file, so this is the actual
                 # domain
                 domain = doc['domain']
-                vertex_id = num_vertices
-                num_vertices = num_vertices + 1
-                label2id[domain] = vertex_id
-                id2label[vertex_id] = domain
-                peers[vertex_id] = doc['peers']
-                # adjlist is a set, hence no multiple edges
-                adjlist[vertex_id] = set()
-        for vertex_id, vertex_peers in peers.items():
+                node_id = num_nodes
+                num_nodes = num_nodes + 1
+                label2id[domain] = node_id
+                id2label[node_id] = domain
+                peers[node_id] = doc['peers']
+                # adjlist is a set, hence no multiple links
+                adjlist[node_id] = set()
+        for node_id, node_peers in peers.items():
             if (time.time() - last_status) > 1:
                 print_status()
                 last_status = time.time()
-            for peer_name in vertex_peers:
+            for peer_name in node_peers:
                 # there should be no need for None and len=0 checks
                 # but I saw such data can be returned from peers api call
                 # so clean it up
@@ -99,17 +99,17 @@ def main():
                     continue
                 if len(peer_name.strip()) == 0:
                     continue
-                # filter if peer is not a known vertex
+                # filter if peer is not a known node
                 # Mastodon peers usually contain many strange domains:
                 # - private IP addresses
                 # - malicious domains
                 # - not working domains
                 if peer_name in label2id:
-                    peer_vertex_id = label2id[peer_name]
+                    peer_node_id = label2id[peer_name]
                     # do not allow self-loops
-                    if peer_vertex_id != vertex_id:
-                        adjlist[vertex_id].add(peer_vertex_id)
-                        num_edges = num_edges + 1
+                    if peer_node_id != node_id:
+                        adjlist[node_id].add(peer_node_id)
+                        num_links = num_links + 1
 
         del peers
 
@@ -123,11 +123,16 @@ def main():
         del id2label
         del label2id
 
-        print('saving graph...')
+        print('saving graphs...')
         save_graph(adjlist,
-                   get_path('mastodon.graph'),
+                   False,
+                   get_path('mastodon.networkit.undirected'),
                    progressfn=percent_progress)
-        print('graph saved.')
+        save_graph(adjlist,
+                   True,
+                   get_path('mastodon.networkit.directed'),
+                   progressfn=percent_progress)
+        print('graphs saved.')
 
     except KeyboardInterrupt:
         pass

@@ -5,14 +5,12 @@ import os
 import re
 from struct import pack, unpack
 import time
-import networkit as nk
-
 try:
     import importlib.resources as pkg_resources
 except ImportError:
     import importlib_resources as pkg_resources
 
-__version__ = '0.2'
+__version__ = '0.3'
 
 def get_version():
     return __version__
@@ -95,6 +93,11 @@ def debug(s):
     if DEBUG:
         print(s, flush=True)
 
+def pltpause():
+    import matplotlib.pyplot as plt
+    input('press enter to close plots...')
+    plt.close('all')
+
 DIR = None
 def set_working_dir(wd):
     global DIR
@@ -116,12 +119,14 @@ def percent_progress(x):
 
 
 def save_graph(adjlists,
+               create_directed,
                file_path,
                progressfn=None):
     if progressfn:
         progressfn(-1)
+    import networkit as nk
     g = nk.Graph(n=len(adjlists),
-                 directed=True)
+                 directed=create_directed)
     # pylint: disable=consider-using-enumerate
     # not enumerating to preserve the order 0...n
     for i in range(0, len(adjlists)):
@@ -129,7 +134,12 @@ def save_graph(adjlists,
             progressfn(i/len(adjlists))
         adjlist = adjlists[i]
         for adj_vertex_id in sorted(adjlist):
-            g.addEdge(i, adj_vertex_id)
+            if create_directed:
+                g.addEdge(i, adj_vertex_id)
+            # prevent adding both u->v and v->u if undirected
+            elif i > adj_vertex_id:
+                g.addEdge(i, adj_vertex_id)
+
     # save graph
     nk.writeGraph(g,
                   file_path,
