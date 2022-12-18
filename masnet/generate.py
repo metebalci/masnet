@@ -61,7 +61,7 @@ def main():
         seconds = elapsed - minutes * 60 - hours * 3600
         print('N:%08d L:%08d ' \
               'e:%02d:%02d:%02d ' % (num_nodes, num_links,
-                                     hours, minutes, seconds))
+                                     hours, minutes, seconds), flush=True)
 
 
     try:

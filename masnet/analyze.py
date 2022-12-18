@@ -176,7 +176,10 @@ def main():
         card.append(['Kind', '%s, %s' % ('directed' if g.isDirected() else 'undirected',
                                          'weighted' if g.isWeighted() else 'unweighted')])
         card.append(['Nodes are', 'Mastodon instances'])
-        card.append(['Links are', 'Peer relationship'])
+        if g.isDirected():
+            card.append(['Links are', 'Peer relationship'])
+        else:
+            card.append(['Links are', 'Peer relationship (direction removed)'])
         card.append(SEPARATING_LINE)
         card.append(['Number of nodes', N])
         card.append(['Number of links', L])
@@ -251,16 +254,12 @@ def main():
 
         print(tabulate(card))
         print('*: avg [min, max]')
-        if g.isDirected():
-            print('Weakly connected components are shown.')
 
         if len(args.card) > 0:
             with open(get_path(args.card), 'w') as f:
                 f.write(tabulate(card))
                 f.write('\n')
                 f.write('*: avg [min, max]\n')
-                if g.isDirected():
-                    f.write('Weakly connected components are shown.\n')
 
     elif args.strongly_connected_components:
 
