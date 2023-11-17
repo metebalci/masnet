@@ -75,8 +75,14 @@ def main():
             if (time.time() - last_status) > 1:
                 print_status()
                 last_status = time.time()
-            with open(file_name, 'r') as f:
-                doc = json.load(f)
+
+            try:
+                with open(file_name, 'r') as f:
+                    doc = json.load(f)
+            except json.JSONDecodeError:
+                print(f"Couldn't load or parse the JSON file {file_name}")
+                continue
+
                 # reading the domain from the file, so this is the actual
                 # domain
                 domain = doc['domain']
